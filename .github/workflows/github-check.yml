@@ -1,0 +1,15 @@
+name: github-check
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup php
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: composer install
+        run: make install
+      - name: run linter
+        run: make lint

@@ -1,0 +1,29 @@
+{
+    "name": "hexlet/code",
+    "description": "Page analyzer",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Hexlet\\Code\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "topmate",
+            "email": "1stbagswag@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "slim/slim": "^4.14",
+        "slim/psr7": "^1.7",
+        "slim/http": "^1.4",
+        "slim/php-view": "^3.3",
+        "php-di/php-di": "^7.0",
+        "slim/flash": "^0.4.0"
+    },
+    "require-dev": {
+        "squizlabs/php_codesniffer": "3.10.2"
+    }
+}
