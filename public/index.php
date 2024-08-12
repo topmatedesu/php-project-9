@@ -9,12 +9,19 @@ if (file_exists($autoloadPath1)) {
 }
 
 use Slim\Factory\AppFactory;
+use Slim\Middleware\MethodOverrideMiddleware;
+use DI\Container;
 
-$app = AppFactory::create();
+$container = new Container();
+$container->set('renderer', function () {
+    return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
+});
+$app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
+$app->add(MethodOverrideMiddleware::class);
 
 $app->get('/', function ($request, $response) {
-    return $response->write('Welcome to page analyzer!');
-})->setName('welcome');
+    return $this->get('renderer')->render($response, 'index.phtml');
+})->setName('index');
 
 $app->run();

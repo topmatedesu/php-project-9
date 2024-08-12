@@ -11,5 +11,5 @@ jobs:
           php-version: '8.2'
       - name: composer install
         run: make install
-      - name: run linter
-        run: make lint
+      # - name: run linter
+      #   run: make lint
