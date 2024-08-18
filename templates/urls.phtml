@@ -34,17 +34,19 @@
         <div class="container-lg mt-3">
         <h1>Сайты</h1>
             <div class="table-responsive">
-                <table data-test="urls" class="table table-bordered table-hover text-nowrap " data-test="urls">
+                <table class="table table-bordered table-hover text-nowrap" data-test="urls">
                     <tbody>
                         <tr>
                             <th>ID</th>
                             <th>Имя</th>
+                            <th>Последняя проверка</th>
                         </tr>
 
                         <?php foreach ($data as $id => $url) : ?>
                             <tr>
                                 <td><?= $id ?></td>
                                 <td><a href="/urls/<?= $id ?>"><?= $url['name'] ?></a></td>
+                                <td><?= $url['created_at'] ?? '' ?></td>
                             </tr>
                         <?php endforeach ?>
                     </tbody>

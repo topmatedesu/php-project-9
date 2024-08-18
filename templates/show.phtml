@@ -59,6 +59,24 @@
                     </tbody>
                 </table>
             </div>
+            <h2 class="mt-5 mb-3">Проверки</h2>
+            <form style="margin-bottom: 16px" method="post" action="/urls/<?= $data['id'] ?>/checks">
+                <input type="submit" class="btn btn-primary" value="Запустить проверку">
+            </form>
+            <table class="table table-bordered table-hover" data-test="checks">
+                <tbody>
+                    <tr>
+                        <th>ID</th>
+                        <th>Дата создания</th>
+                    </tr>
+                    <?php foreach ($checkData as $check) : ?>
+                        <tr>
+                            <td><?= $check['id'] ?? '' ?></td>
+                            <td><?= $check['created_at'] ?? '' ?></td>
+                        </tr>
+                    <?php endforeach ?>
+                </tbody>
+            </table>
         </div>
     </main>
 
