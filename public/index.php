@@ -7,6 +7,9 @@ use Slim\Middleware\MethodOverrideMiddleware;
 use DI\Container;
 use Carbon\Carbon;
 use Valitron\Validator;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 
 session_start();
 
@@ -40,6 +43,9 @@ $container->set('pdo', function () {
 
     return $pdo;
 });
+$container->set('client', function () {
+    return new Client();
+});
 
 $app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
@@ -53,10 +59,14 @@ $app->get('/', function ($request, $response) {
 
 $app->get('/urls', function ($request, $response) {
     $pdo = $this->get('pdo');
-    $queryUrls = 'SELECT urls.id AS id, urls.name AS name, MAX(url_checks.created_at) AS created_at
-        FROM urls LEFT JOIN url_checks ON urls.id = url_checks.url_id
-        GROUP BY urls.id
-        ORDER BY created_at DESC';
+    $queryUrls = 'SELECT
+        urls.id AS id,
+        urls.name AS name,
+        MAX(url_checks.created_at) AS created_at,
+        url_checks.status_code AS status_code
+    FROM urls LEFT JOIN url_checks ON urls.id = url_checks.url_id
+    GROUP BY urls.id, status_code
+    ORDER BY created_at DESC';
     $stmt = $pdo->prepare($queryUrls);
     $stmt->execute();
     $selectedUrls = $stmt->fetchAll(\PDO::FETCH_UNIQUE);
@@ -161,11 +171,31 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, array $args) 
 
     try {
         $pdo = $this->get('pdo');
+        $queryUrl = 'SELECT name FROM urls WHERE id = ?';
+        $stmt = $pdo->prepare($queryUrl);
+        $stmt->execute([$id]);
+        $selectUrl = $stmt->fetch(\PDO::FETCH_COLUMN);
         $createdAt = Carbon::now();
-        $sql = "INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)";
+
+        $client = $this->get('client');
+        try {
+            $res = $client->get($selectUrl);
+            $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+        } catch (RequestException $e) {
+            $res = $e->getResponse();
+            $this->get('flash')->clearMessages();
+            $errorMessage = 'Проверка была выполнена успешно, но сервер ответил c ошибкой';
+            $this->get('flash')->addMessage('error', $errorMessage);
+        } catch (ConnectException $e) {
+            $errorMessage = 'Произошла ошибка при проверке, не удалось подключиться';
+            $this->get('flash')->addMessage('danger', $errorMessage);
+            return $response->withRedirect($router->urlFor('url', ['id' => $id]));
+        }
+        $statusCode = !is_null($res) ? $res->getStatusCode() : null;
+
+        $sql = "INSERT INTO url_checks (url_id, created_at, status_code) VALUES (?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$id, $createdAt]);
-        $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+        $stmt->execute([$id, $createdAt, $statusCode]);
     } catch (\PDOException $e) {
         echo $e->getMessage();
     }

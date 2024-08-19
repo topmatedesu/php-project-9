@@ -25,7 +25,8 @@
         "twbs/bootstrap": "5.3.3",
         "vlucas/valitron": "^1.4",
         "nesbot/carbon": "^3.7",
-        "illuminate/support": "^11.20"
+        "illuminate/support": "^11.20",
+        "guzzlehttp/guzzle": "^7.0"
     },
     "require-dev": {
         "squizlabs/php_codesniffer": "3.10.2",
