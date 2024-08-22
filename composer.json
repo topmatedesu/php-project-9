@@ -26,7 +26,9 @@
         "vlucas/valitron": "^1.4",
         "nesbot/carbon": "^3.7",
         "illuminate/support": "^11.20",
-        "guzzlehttp/guzzle": "^7.0"
+        "guzzlehttp/guzzle": "^7.0",
+        "imangazaliev/didom": "^2.0",
+        "laravel/installer": "^5.8"
     },
     "require-dev": {
         "squizlabs/php_codesniffer": "3.10.2",
