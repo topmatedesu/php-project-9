@@ -125,47 +125,43 @@ $app->post('/urls', function ($request, $response) use ($router) {
     $validator->rule('url', 'name')->message('Некорректный URL');
     $validator->rule('lengthMax', 'name', 255)->message('Некорректный URL');
 
-    if ($validator->validate()) {
-        $createdAt = Carbon::now();
-        $url = strtolower($urlData['name']);
-        $parseUrl = parse_url($url);
-        $urlName = "{$parseUrl['scheme']}://{$parseUrl['host']}";
-        try {
-            $pdo = $this->get('pdo');
-            $queryUrl = 'SELECT name FROM urls WHERE name = ?';
-            $stmt = $pdo->prepare($queryUrl);
-            $stmt->execute([$urlName]);
-            $selectedUrl = $stmt->fetchAll();
-
-            if (count($selectedUrl) > 0) {
-                $queryId = 'SELECT id FROM urls WHERE name = ?';
-                $stmt = $pdo->prepare($queryId);
-                $stmt->execute([$urlName]);
-                $selectId = (string) $stmt->fetchColumn();
-
-                $this->get('flash')->addMessage('success', 'Страница уже существует');
-                return $response->withRedirect($router->urlFor('url', ['id' => $selectId]));
-            }
-
-            $sql = "INSERT INTO urls (name, created_at) VALUES (?, ?)";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$urlName, $createdAt]);
-            $lastInsertId = (string) $pdo->lastInsertId();
-            $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
-            return $response->withRedirect($router->urlFor('url', ['id' => $lastInsertId]));
-        } catch (\Throwable | \PDOException $e) {
-            echo $e->getMessage();
-        }
+    if (!$validator->validate()) {
+        $errors = $validator->errors();
+        $params = [
+            'url' => $urlData['name'],
+            'errors' => $errors,
+            'invalidForm' => 'is-invalid'
+        ];
+        $response = $response->withStatus(422);
+        return $this->get('renderer')->render($response, 'index.phtml', $params);
     }
 
-    $errors = $validator->errors();
-    $params = [
-        'url' => $urlData['name'],
-        'errors' => $errors,
-        'invalidForm' => 'is-invalid'
-    ];
-    $response = $response->withStatus(422);
-    return $this->get('renderer')->render($response, 'index.phtml', $params);
+    $url = strtolower($urlData['name']);
+    $parseUrl = parse_url($url);
+    $urlName = "{$parseUrl['scheme']}://{$parseUrl['host']}";
+
+    $pdo = $this->get('pdo');
+    $queryUrl = 'SELECT name FROM urls WHERE name = ?';
+    $stmt = $pdo->prepare($queryUrl);
+    $stmt->execute([$urlName]);
+    $selectedUrl = $stmt->fetchAll();
+
+    if ($selectedUrl) {
+        $queryId = 'SELECT id FROM urls WHERE name = ?';
+        $stmt = $pdo->prepare($queryId);
+        $stmt->execute([$urlName]);
+        $selectId = (string) $stmt->fetchColumn();
+        $this->get('flash')->addMessage('success', 'Страница уже существует');
+        return $response->withRedirect($router->urlFor('url', ['id' => $selectId]));
+    }
+
+    $createdAt = Carbon::now();
+    $sql = "INSERT INTO urls (name, created_at) VALUES (?, ?)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$urlName, $createdAt]);
+    $lastInsertId = (string) $pdo->lastInsertId();
+    $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
+    return $response->withRedirect($router->urlFor('url', ['id' => $lastInsertId]));
 });
 
 $app->post('/urls/{url_id}/checks', function ($request, $response, array $args) use ($router) {
