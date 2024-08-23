@@ -3,7 +3,7 @@
 [![Github Actions](https://github.com/topmatedesu/php-project-9/actions/workflows/github-check.yml/badge.svg)](https://github.com/topmatedesu/php-project-9/actions/workflows/github-check.yml)
 [![Maintainability](https://api.codeclimate.com/v1/badges/655ac98c1e17e2a1de80/maintainability)](https://codeclimate.com/github/topmatedesu/php-project-9/maintainability)
 
-### [Page analyzer](https://php-project-9-w2fx.onrender.com/)
+# [Page analyzer](https://php-project-9-w2fx.onrender.com/)
 
 ## Requirements
 PHP 8.2.10
