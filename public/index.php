@@ -23,6 +23,11 @@ $container->set('flash', function () {
 });
 $container->set('pdo', function () {
     $databaseUrl = parse_url(getenv('DATABASE_URL'));
+
+    if (!$databaseUrl) {
+        throw new \Exception("Error reading database url");
+    }
+
     $username = $databaseUrl['user'];
     $password = $databaseUrl['pass'];
     $host = $databaseUrl['host'];
