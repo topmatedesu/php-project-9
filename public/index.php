@@ -11,6 +11,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
+use Illuminate\Support;
 
 session_start();
 
@@ -22,12 +23,7 @@ $container->set('flash', function () {
     return new \Slim\Flash\Messages();
 });
 $container->set('pdo', function () {
-    $databaseUrl = parse_url(getenv('DATABASE_URL'));
-
-    if (!$databaseUrl) {
-        throw new \Exception("Error reading database url");
-    }
-
+    $databaseUrl = parse_url($_ENV('DATABASE_URL'));
     $username = $databaseUrl['user'];
     $password = $databaseUrl['pass'];
     $host = $databaseUrl['host'];
