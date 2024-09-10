@@ -2,28 +2,42 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use DI\Container;
+use Slim\Flash\Messages;
 use Slim\Factory\AppFactory;
 use Slim\Middleware\MethodOverrideMiddleware;
-use DI\Container;
 use Carbon\Carbon;
 use Valitron\Validator;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use DiDom\Document;
-use Illuminate\Support;
+use Dotenv\Dotenv;
+use Spatie\Ignition\Ignition;
+use Illuminate\Support\Optional;
 
-session_start();
+Ignition::make()->setTheme('dark')->register();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $container = new Container();
 $container->set('renderer', function () {
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
 $container->set('flash', function () {
-    return new \Slim\Flash\Messages();
+    return new Messages();
 });
-$container->set('pdo', function () {
-    $databaseUrl = parse_url($_ENV('DATABASE_URL'));
+$container->set('db', function () {
+    $dotenv = Dotenv::createImmutable(__DIR__ . '/../');
+    $dotenv->safeLoad();
+
+    $databaseUrl = parse_url($_ENV['DATABASE_URL']);
+    if (!$databaseUrl) {
+        throw new \Exception("Error reading database url");
+    }
+
     $username = $databaseUrl['user'];
     $password = $databaseUrl['pass'];
     $host = $databaseUrl['host'];
@@ -60,7 +74,7 @@ $app->get('/', function ($request, $response) {
 })->setName('main');
 
 $app->get('/urls', function ($request, $response) {
-    $pdo = $this->get('pdo');
+    $pdo = $this->get('db');
     $queryUrls = 'SELECT
         urls.id AS id,
         urls.name AS name,
@@ -94,7 +108,7 @@ $app->get('/urls/{id}', function ($request, $response, array $args) {
     }
 
     $id = $args['id'];
-    $pdo = $this->get('pdo');
+    $pdo = $this->get('db');
     $query = 'SELECT * FROM urls WHERE id = ?';
     $stmt = $pdo->prepare($query);
     $stmt->execute([$id]);
@@ -141,7 +155,7 @@ $app->post('/urls', function ($request, $response) use ($router) {
     $parseUrl = parse_url($url);
     $urlName = "{$parseUrl['scheme']}://{$parseUrl['host']}";
 
-    $pdo = $this->get('pdo');
+    $pdo = $this->get('db');
     $queryUrl = 'SELECT name FROM urls WHERE name = ?';
     $stmt = $pdo->prepare($queryUrl);
     $stmt->execute([$urlName]);
@@ -165,11 +179,11 @@ $app->post('/urls', function ($request, $response) use ($router) {
     return $response->withRedirect($router->urlFor('url', ['id' => $lastInsertId]));
 });
 
-$app->post('/urls/{url_id}/checks', function ($request, $response, array $args) use ($router) {
+$app->post('/urls/{url_id:[0-9]+}/checks', function ($request, $response, array $args) use ($router) {
     $id = $args['url_id'];
 
     try {
-        $pdo = $this->get('pdo');
+        $pdo = $this->get('db');
         $queryUrl = 'SELECT name FROM urls WHERE id = ?';
         $stmt = $pdo->prepare($queryUrl);
         $stmt->execute([$id]);
@@ -194,9 +208,9 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, array $args) 
 
         $bodyHtml = $res->getBody();
         $document = new Document((string) $bodyHtml);
-        $h1 = optional($document->first('h1'))->text();
-        $title = optional($document->first('title'))->text();
-        $description = optional($document->first('meta[name="description"]'))->getAttribute('content');
+        $h1 = (string) optional($document->first('h1'))->text();
+        $title = (string) optional($document->first('title'))->text();
+        $description = (string) optional($document->first('meta[name="description"]'))->getAttribute('content');
 
         $sql = "INSERT INTO url_checks (
             url_id,
