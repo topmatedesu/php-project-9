@@ -136,7 +136,7 @@ $app->get('/urls/{id}', function (ServerRequest $request, Response $response, ar
 })->setName('urls.show');
 
 $app->post('/urls', function (ServerRequest $request, Response $response) use ($router) {
-    $formData = $request->getParsedBody();
+    $formData = (array) $request->getParsedBody();
     $validator = new Validator($formData['url']);
     $validator->rule('required', 'name')->message('URL не должен быть пустым');
     $validator->rule('url', 'name')->message('Некорректный URL');
