@@ -6,6 +6,8 @@ use DI\Container;
 use Slim\Flash\Messages;
 use Slim\Factory\AppFactory;
 use Slim\Middleware\MethodOverrideMiddleware;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
 use Carbon\Carbon;
 use Valitron\Validator;
 use GuzzleHttp\Client;
@@ -23,7 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $container = new Container();
-$container->set('renderer', function () {
+$container->set('view', function () {
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
 $container->set('flash', function () {
@@ -69,11 +71,11 @@ $app->add(MethodOverrideMiddleware::class);
 
 $router = $app->getRouteCollector()->getRouteParser();
 
-$app->get('/', function ($request, $response) {
-    return $this->get('renderer')->render($response, 'index.phtml');
-})->setName('main');
+$app->get('/', function (ServerRequest $request, Response $response) {
+    return $this->get('view')->render($response, 'main/index.phtml');
+})->setName('main.index');
 
-$app->get('/urls', function ($request, $response) {
+$app->get('/urls', function (ServerRequest $request, Response $response) {
     $pdo = $this->get('db');
     $queryUrls = 'SELECT
         urls.id AS id,
@@ -88,10 +90,10 @@ $app->get('/urls', function ($request, $response) {
     $selectedUrls = $stmt->fetchAll(\PDO::FETCH_UNIQUE);
 
     $params = ['data' => $selectedUrls];
-    return $this->get('renderer')->render($response, "urls.phtml", $params);
-})->setName('urls');
+    return $this->get('view')->render($response, 'urls/index.phtml', $params);
+})->setName('urls.index');
 
-$app->get('/urls/{id}', function ($request, $response, array $args) {
+$app->get('/urls/{id}', function (ServerRequest $request, Response $response, array $args) {
     $messages = $this->get('flash')->getMessages();
     $alert = '';
 
@@ -112,9 +114,9 @@ $app->get('/urls/{id}', function ($request, $response, array $args) {
     $query = 'SELECT * FROM urls WHERE id = ?';
     $stmt = $pdo->prepare($query);
     $stmt->execute([$id]);
-    $urlSelect = $stmt->fetch();
+    $selectedUrl = $stmt->fetch();
 
-    if (count($urlSelect) === 0) {
+    if (!$selectedUrl) {
         return $response->write('Страница не найдена!')
             ->withStatus(404);
     }
@@ -126,16 +128,16 @@ $app->get('/urls/{id}', function ($request, $response, array $args) {
 
     $params = [
         'flash' => $messages,
-        'data' => $urlSelect,
+        'data' => $selectedUrl,
         'alert' => $alert,
         'checkData' => $selectedCheck
     ];
-    return $this->get('renderer')->render($response, 'show.phtml', $params);
-})->setName('url');
+    return $this->get('view')->render($response, 'urls/show.phtml', $params);
+})->setName('urls.show');
 
-$app->post('/urls', function ($request, $response) use ($router) {
-    $urlData = $request->getParsedBodyParam('url');
-    $validator = new Validator($urlData);
+$app->post('/urls', function (ServerRequest $request, Response $response) use ($router) {
+    $formData = $request->getParsedBody();
+    $validator = new Validator($formData['url']);
     $validator->rule('required', 'name')->message('URL не должен быть пустым');
     $validator->rule('url', 'name')->message('Некорректный URL');
     $validator->rule('lengthMax', 'name', 255)->message('Некорректный URL');
@@ -143,43 +145,46 @@ $app->post('/urls', function ($request, $response) use ($router) {
     if (!$validator->validate()) {
         $errors = $validator->errors();
         $params = [
-            'url' => $urlData['name'],
+            'url' => $formData['url'],
             'errors' => $errors,
             'invalidForm' => 'is-invalid'
         ];
         $response = $response->withStatus(422);
-        return $this->get('renderer')->render($response, 'index.phtml', $params);
+        return $this->get('view')->render($response, 'main/index.phtml', $params);
     }
 
-    $url = strtolower($urlData['name']);
-    $parseUrl = parse_url($url);
-    $urlName = "{$parseUrl['scheme']}://{$parseUrl['host']}";
+    $parseUrl = parse_url(mb_strtolower($formData['url']['name']));
+    $normalizedUrl = "{$parseUrl['scheme']}://{$parseUrl['host']}";
 
     $pdo = $this->get('db');
     $queryUrl = 'SELECT name FROM urls WHERE name = ?';
     $stmt = $pdo->prepare($queryUrl);
-    $stmt->execute([$urlName]);
-    $selectedUrl = $stmt->fetchAll();
+    $stmt->execute([$normalizedUrl]);
+    $url = $stmt->fetchAll();
 
-    if ($selectedUrl) {
+    if ($url) {
         $queryId = 'SELECT id FROM urls WHERE name = ?';
         $stmt = $pdo->prepare($queryId);
-        $stmt->execute([$urlName]);
+        $stmt->execute([$normalizedUrl]);
         $selectId = (string) $stmt->fetchColumn();
         $this->get('flash')->addMessage('success', 'Страница уже существует');
-        return $response->withRedirect($router->urlFor('url', ['id' => $selectId]));
+        return $response->withRedirect($router->urlFor('urls.show', ['id' => $selectId]));
     }
 
     $createdAt = Carbon::now();
     $sql = "INSERT INTO urls (name, created_at) VALUES (?, ?)";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$urlName, $createdAt]);
+    $stmt->execute([$normalizedUrl, $createdAt]);
     $lastInsertId = (string) $pdo->lastInsertId();
     $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
-    return $response->withRedirect($router->urlFor('url', ['id' => $lastInsertId]));
+    return $response->withRedirect($router->urlFor('urls.show', ['id' => $lastInsertId]));
 });
 
-$app->post('/urls/{url_id:[0-9]+}/checks', function ($request, $response, array $args) use ($router) {
+$app->post('/urls/{url_id:[0-9]+}/checks', function (
+    ServerRequest $request,
+    Response $response,
+    array $args
+) use ($router) {
     $id = $args['url_id'];
 
     try {
@@ -202,7 +207,7 @@ $app->post('/urls/{url_id:[0-9]+}/checks', function ($request, $response, array 
         } catch (ConnectException $e) {
             $errorMessage = 'Произошла ошибка при проверке, не удалось подключиться';
             $this->get('flash')->addMessage('danger', $errorMessage);
-            return $response->withRedirect($router->urlFor('url', ['id' => $id]));
+            return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
         }
         $statusCode = !is_null($res) ? $res->getStatusCode() : null;
 
@@ -226,7 +231,7 @@ $app->post('/urls/{url_id:[0-9]+}/checks', function ($request, $response, array 
         echo $e->getMessage();
     }
 
-    return $response->withRedirect($router->urlFor('url', ['id' => $id]));
+    return $response->withRedirect($router->urlFor('urls.show', ['id' => $id]));
 });
 
 $app->run();

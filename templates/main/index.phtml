@@ -39,7 +39,7 @@
                     <p class="lead">Бесплатно проверяйте сайты на SEO пригодность</p>
                     <form action="/urls" method="post" class="row" required="">
                         <div class="col-8">
-                            <input type="text" name="url[name]" value="<?= htmlspecialchars($url ?? '') ?>" class="form-control form-control-lg <?= isset($errors['name']) ? 'is-invalid' : '' ?>" placeholder="https://www.example.com">
+                            <input type="text" name="url[name]" value="<?= htmlspecialchars($url['name'] ?? '') ?>" class="form-control form-control-lg <?= isset($errors['name']) ? 'is-invalid' : '' ?>" placeholder="https://www.example.com">
                             <?php if (isset($errors['name'])) : ?>
                                 <div class="invalid-feedback"><?= $errors['name'][0] ?></div>
                             <?php endif ?>
